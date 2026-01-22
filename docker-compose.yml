@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: socialDB
+    environment:
+      POSTGRES_USER: antcoai
+      POSTGRES_PASSWORD: Antcoai@123456
+      POSTGRES_DB: IdentityDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - social-data:/var/lib/postgresql/data
+    networks:
+      - zalo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U antcoai -d IdentityDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    container_name: socialRedis
+    ports:
+      - "6379:6379"
+    networks:
+      - zalo-network
+
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: socialRabbitMQ
+    environment:
+      RABBITMQ_DEFAULT_USER: antcoai
+      RABBITMQ_DEFAULT_PASS: Antcoai@123456
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - zalo-network
+
+  identity-api:
+    build:
+      context: .
+      dockerfile: Identity.API/Dockerfile
+    container_name: identity-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=IdentityDb;Username=antcoai;Password=Antcoai@123456
+      - Jwt__Secret=YourSuperSecretKeyHere_MustBeAtLeast32Characters!
+      - Jwt__Issuer=Identity.API
+      - Jwt__Audience=Social.Client
+    ports:
+      - "5001:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - zalo-network
+
+volumes:
+  social-data:
+
+networks:
+  zalo-network:
+    driver: bridge

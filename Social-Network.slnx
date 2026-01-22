@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/src/">
+    <File Path="docker-compose.yml" />
+  </Folder>
+  <Folder Name="/src/ApiGateway/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="BuildingBlocks/BuildingBlocks.Common/BuildingBlocks.Common.csproj" Id="a1b2c3d4-e5f6-7890-abcd-ef1234567890" />
+    <Project Path="BuildingBlocks/BuildingBlocks.EventBus/BuildingBlocks.EventBus.csproj" Id="b2c3d4e5-f6a7-8901-bcde-f23456789012" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Identity/">
+    <Project Path="Identity.API/Identity.API.csproj" Id="b3429ae2-a749-4575-aa1a-a4ee47efcbd6" />
+    <Project Path="Identity.Application/Identity.Application.csproj" Id="286f81f4-5f83-43c7-8970-022ddfaa9eaa" />
+    <Project Path="Identity.Domain/Identity.Domain.csproj" Id="c50d0a7f-5b2f-40b1-90df-a6e96f61523f" />
+    <Project Path="Identity.Infrastructure/Identity.Infrastructure.csproj" Id="dc7df1c1-23c7-4f56-b45b-b8d6f356aa81" />
+  </Folder>
+  <Folder Name="/src/Services/Message/" />
+  <Folder Name="/src/Services/Notification/" />
+  <Folder Name="/src/Services/Sync/" />
+  <Folder Name="/src/Services/ZaloOA/">
+    <Project Path="ZaloOA.API/ZaloOA.API.csproj" Id="38a4d8d4-e3c1-4701-9641-9787e958bfa5" />
+    <Project Path="ZaloOA.Application/ZaloOA.Application.csproj" Id="f634cde7-5c86-4d53-af1c-25d6e8da85bd" />
+    <Project Path="ZaloOA.Domain/ZaloOA.Domain.csproj" Id="9b704365-185a-4b24-be29-299b6129115a" />
+    <Project Path="ZaloOA.Infrastructure/ZaloOA.Infrastructure.csproj" Id="3fb7aabf-9782-4a84-81f6-5f20003fa7cb" />
+  </Folder>
+  <Folder Name="/src/Services/ZaloUser/" />
+</Solution>

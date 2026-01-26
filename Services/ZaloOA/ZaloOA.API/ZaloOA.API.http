@@ -1,6 +1,80 @@
-@ZaloOA.API_HostAddress = http://localhost:5051
+@baseUrl = http://localhost:5051/api/zalooa
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.YOUR_JWT_TOKEN_HERE
 
-GET {{ZaloOA.API_HostAddress}}/weatherforecast/
+### ============================================
+### 1. GET OAUTH2 AUTHORIZE URL
+### Lấy URL để redirect user đến trang authorize của Zalo
+### Không cần authentication
+### ============================================
+GET {{baseUrl}}/oauth/authorize
 Accept: application/json
 
-###
+### Với custom redirect URI
+GET {{baseUrl}}/oauth/authorize?redirectUri=http://localhost:3000/callback
+Accept: application/json
+
+### ============================================
+### 2. CONNECT WITH OAUTH2
+### Kết nối Zalo OA sau khi user authorize
+### Cần JWT token
+### ============================================
+POST {{baseUrl}}/oauth/connect
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "code": "AUTHORIZATION_CODE_FROM_ZALO",
+  "codeVerifier": "OPTIONAL_CODE_VERIFIER_FOR_PKCE"
+}
+
+### ============================================
+### 3. CONNECT WITH API KEY
+### Kết nối Zalo OA bằng Access Token trực tiếp
+### (Dùng cho testing hoặc khi có sẵn token)
+### Cần JWT token
+### ============================================
+POST {{baseUrl}}/connect/apikey
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "accessToken": "YOUR_ZALO_ACCESS_TOKEN",
+  "refreshToken": "YOUR_ZALO_REFRESH_TOKEN"
+}
+
+### ============================================
+### 4. GET CONNECTED ACCOUNTS
+### Lấy danh sách tất cả Zalo OA đã kết nối của user
+### Cần JWT token
+### ============================================
+GET {{baseUrl}}
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ============================================
+### 5. GET ACCOUNT BY ID
+### Lấy chi tiết một Zalo OA account
+### Cần JWT token
+### ============================================
+@accountId = 00000000-0000-0000-0000-000000000000
+
+GET {{baseUrl}}/{{accountId}}
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ============================================
+### 6. REFRESH TOKEN
+### Làm mới Access Token của Zalo OA
+### Cần JWT token
+### ============================================
+POST {{baseUrl}}/{{accountId}}/refresh-token
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ============================================
+### 7. DISCONNECT ACCOUNT
+### Ngắt kết nối Zalo OA
+### Cần JWT token
+### ============================================
+DELETE {{baseUrl}}/{{accountId}}
+Authorization: Bearer {{token}}

@@ -67,15 +67,11 @@ public class ZaloOAService : IZaloOAService
         var existingAccount = await _unitOfWork.ZaloOAAccounts.GetByUserIdAndOAIdAsync(userId, oaId);
         if (existingAccount != null)
         {
-            existingAccount.AccessToken = tokenResponse.AccessToken;
-            existingAccount.RefreshToken = tokenResponse.RefreshToken;
-            existingAccount.TokenExpiresAt = tokenResponse.ExpiresIn.HasValue
-                ? DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn.Value)
-                : null;
-            existingAccount.Status = OAStatus.Active;
-            existingAccount.Name = oaInfoResponse.Data.Name ?? existingAccount.Name;
-            existingAccount.AvatarUrl = oaInfoResponse.Data.Avatar;
-            existingAccount.UpdatedAt = DateTime.UtcNow;
+            existingAccount.UpdateTokens(
+                tokenResponse.AccessToken,
+                tokenResponse.RefreshToken,
+                tokenResponse.ExpiresIn);
+            existingAccount.UpdateOAInfo(oaInfoResponse.Data.Name, oaInfoResponse.Data.Avatar);
 
             _unitOfWork.ZaloOAAccounts.Update(existingAccount);
             await _unitOfWork.SaveChangesAsync();
@@ -83,22 +79,15 @@ public class ZaloOAService : IZaloOAService
             return Result<ZaloOAResponse>.Success(MapToResponse(existingAccount));
         }
 
-        var newAccount = new ZaloOAAccount
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            OAId = oaId,
-            Name = oaInfoResponse.Data.Name ?? "Unknown OA",
-            AvatarUrl = oaInfoResponse.Data.Avatar,
-            AccessToken = tokenResponse.AccessToken,
-            RefreshToken = tokenResponse.RefreshToken,
-            TokenExpiresAt = tokenResponse.ExpiresIn.HasValue
-                ? DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn.Value)
-                : null,
-            AuthType = AuthenticationType.OAuth2,
-            Status = OAStatus.Active,
-            CreatedAt = DateTime.UtcNow
-        };
+        var newAccount = ZaloOAAccount.Create(
+            userId: userId,
+            oaId: oaId,
+            name: oaInfoResponse.Data.Name ?? "Unknown OA",
+            avatarUrl: oaInfoResponse.Data.Avatar,
+            accessToken: tokenResponse.AccessToken,
+            refreshToken: tokenResponse.RefreshToken,
+            expiresInSeconds: tokenResponse.ExpiresIn,
+            authType: AuthenticationType.OAuth2);
 
         await _unitOfWork.ZaloOAAccounts.AddAsync(newAccount);
         await _unitOfWork.SaveChangesAsync();
@@ -120,13 +109,9 @@ public class ZaloOAService : IZaloOAService
         var existingAccount = await _unitOfWork.ZaloOAAccounts.GetByUserIdAndOAIdAsync(userId, oaId);
         if (existingAccount != null)
         {
-            existingAccount.AccessToken = request.AccessToken;
-            existingAccount.RefreshToken = request.RefreshToken;
-            existingAccount.Status = OAStatus.Active;
-            existingAccount.Name = oaInfoResponse.Data.Name ?? existingAccount.Name;
-            existingAccount.AvatarUrl = oaInfoResponse.Data.Avatar;
-            existingAccount.AuthType = AuthenticationType.ApiKey;
-            existingAccount.UpdatedAt = DateTime.UtcNow;
+            existingAccount.UpdateTokens(request.AccessToken, request.RefreshToken, expiresInSeconds: null);
+            existingAccount.UpdateOAInfo(oaInfoResponse.Data.Name, oaInfoResponse.Data.Avatar);
+            existingAccount.UpdateAuthType(AuthenticationType.ApiKey);
 
             _unitOfWork.ZaloOAAccounts.Update(existingAccount);
             await _unitOfWork.SaveChangesAsync();
@@ -134,19 +119,15 @@ public class ZaloOAService : IZaloOAService
             return Result<ZaloOAResponse>.Success(MapToResponse(existingAccount));
         }
 
-        var newAccount = new ZaloOAAccount
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            OAId = oaId,
-            Name = oaInfoResponse.Data.Name ?? "Unknown OA",
-            AvatarUrl = oaInfoResponse.Data.Avatar,
-            AccessToken = request.AccessToken,
-            RefreshToken = request.RefreshToken,
-            AuthType = AuthenticationType.ApiKey,
-            Status = OAStatus.Active,
-            CreatedAt = DateTime.UtcNow
-        };
+        var newAccount = ZaloOAAccount.Create(
+            userId: userId,
+            oaId: oaId,
+            name: oaInfoResponse.Data.Name ?? "Unknown OA",
+            avatarUrl: oaInfoResponse.Data.Avatar,
+            accessToken: request.AccessToken,
+            refreshToken: request.RefreshToken,
+            expiresInSeconds: null,
+            authType: AuthenticationType.ApiKey);
 
         await _unitOfWork.ZaloOAAccounts.AddAsync(newAccount);
         await _unitOfWork.SaveChangesAsync();
@@ -212,7 +193,7 @@ public class ZaloOAService : IZaloOAService
 
         if (tokenResponse.Error.HasValue && tokenResponse.Error != 0)
         {
-            account.Status = OAStatus.TokenExpired;
+            account.MarkAsTokenExpired();
             _unitOfWork.ZaloOAAccounts.Update(account);
             await _unitOfWork.SaveChangesAsync();
 
@@ -224,16 +205,10 @@ public class ZaloOAService : IZaloOAService
             return Result<ZaloOAResponse>.Failure("No access token received from Zalo");
         }
 
-        account.AccessToken = tokenResponse.AccessToken;
-        if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
-        {
-            account.RefreshToken = tokenResponse.RefreshToken;
-        }
-        account.TokenExpiresAt = tokenResponse.ExpiresIn.HasValue
-            ? DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn.Value)
-            : null;
-        account.Status = OAStatus.Active;
-        account.UpdatedAt = DateTime.UtcNow;
+        account.UpdateTokens(
+            tokenResponse.AccessToken,
+            tokenResponse.RefreshToken,
+            tokenResponse.ExpiresIn);
 
         _unitOfWork.ZaloOAAccounts.Update(account);
         await _unitOfWork.SaveChangesAsync();

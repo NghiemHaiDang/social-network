@@ -5,7 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ZaloOA.Application;
 using ZaloOA.Infrastructure;
-using ZaloOA.Infrastructure.Persistence;
+using ZaloOA.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 

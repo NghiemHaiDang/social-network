@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ZaloOA.Application.Common.Interfaces;
-using ZaloOA.Infrastructure.Configuration;
-using ZaloOA.Infrastructure.ExternalServices.Zalo;
-using ZaloOA.Infrastructure.Persistence;
-using ZaloOA.Infrastructure.Persistence.Repositories;
+using ZaloOA.Application.Interfaces;
+using ZaloOA.Application.Services;
+using ZaloOA.Infrastructure.Data;
+using ZaloOA.Infrastructure.Repositories;
+using ZaloOA.Infrastructure.Services;
 
 namespace ZaloOA.Infrastructure;
 
@@ -20,17 +20,16 @@ public static class DependencyInjection
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         // Configuration
-        var zaloConfiguration = new ZaloConfiguration();
-        configuration.GetSection("Zalo").Bind(zaloConfiguration);
-        services.AddSingleton(zaloConfiguration);
-        services.AddSingleton<IZaloConfiguration>(zaloConfiguration);
+        var zaloSettings = new ZaloSettings();
+        configuration.GetSection("Zalo").Bind(zaloSettings);
+        services.AddSingleton(zaloSettings);
 
         // Repositories
         services.AddScoped<IZaloOAAccountRepository, ZaloOAAccountRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // External Services
-        services.AddHttpClient<IZaloApiService, ZaloApiService>();
+        services.AddHttpClient<IZaloApiClient, ZaloApiClient>();
 
         return services;
     }

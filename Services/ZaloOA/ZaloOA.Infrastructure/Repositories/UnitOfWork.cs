@@ -10,11 +10,22 @@ public class UnitOfWork : IUnitOfWork
     private IDbContextTransaction? _transaction;
 
     public IZaloOAAccountRepository ZaloOAAccounts { get; }
+    public IZaloUserRepository ZaloUsers { get; }
+    public IZaloConversationRepository ZaloConversations { get; }
+    public IZaloMessageRepository ZaloMessages { get; }
 
-    public UnitOfWork(ZaloOADbContext context, IZaloOAAccountRepository zaloOAAccountRepository)
+    public UnitOfWork(
+        ZaloOADbContext context,
+        IZaloOAAccountRepository zaloOAAccountRepository,
+        IZaloUserRepository zaloUserRepository,
+        IZaloConversationRepository zaloConversationRepository,
+        IZaloMessageRepository zaloMessageRepository)
     {
         _context = context;
         ZaloOAAccounts = zaloOAAccountRepository;
+        ZaloUsers = zaloUserRepository;
+        ZaloConversations = zaloConversationRepository;
+        ZaloMessages = zaloMessageRepository;
     }
 
     public async Task<int> SaveChangesAsync()

@@ -5,7 +5,8 @@ namespace ZaloOA.Application.Interfaces;
 
 public interface IZaloOAService
 {
-    Task<Result<OAuth2AuthorizeUrlResponse>> GetOAuth2AuthorizeUrlAsync(string? redirectUri = null);
+    Task<Result<OAuth2AuthorizeUrlResponse>> GetOAuth2AuthorizeUrlAsync(string userId, string? redirectUri = null);
+    Task<Result<OAuthCallbackResponse>> HandleOAuthCallbackAsync(string code, string state);
     Task<Result<ZaloOAResponse>> ConnectWithOAuth2Async(string userId, ConnectOAuth2Request request);
     Task<Result<ZaloOAResponse>> ConnectWithApiKeyAsync(string userId, ConnectApiKeyRequest request);
     Task<Result<ZaloOAListResponse>> GetConnectedAccountsAsync(string userId);

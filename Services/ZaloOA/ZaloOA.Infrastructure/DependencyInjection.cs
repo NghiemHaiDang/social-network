@@ -26,11 +26,38 @@ public static class DependencyInjection
 
         // Repositories
         services.AddScoped<IZaloOAAccountRepository, ZaloOAAccountRepository>();
+        services.AddScoped<IZaloUserRepository, ZaloUserRepository>();
+        services.AddScoped<IZaloConversationRepository, ZaloConversationRepository>();
+        services.AddScoped<IZaloMessageRepository, ZaloMessageRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // External Services
         services.AddHttpClient<IZaloApiClient, ZaloApiClient>();
 
+        // Message Broker (RabbitMQ)
+        var rabbitMQEnabled = configuration.GetValue<bool>("RabbitMQ:Enabled", false);
+        if (rabbitMQEnabled)
+        {
+            services.AddSingleton<IMessageBroker, RabbitMQMessageBroker>();
+        }
+        else
+        {
+            // No-op implementation when RabbitMQ is disabled
+            services.AddSingleton<IMessageBroker, NoOpMessageBroker>();
+        }
+
         return services;
+    }
+}
+
+/// <summary>
+/// No-op implementation when RabbitMQ is disabled
+/// </summary>
+public class NoOpMessageBroker : IMessageBroker
+{
+    public Task PublishAsync<T>(string exchangeName, string routingKey, T message) where T : class
+    {
+        // Do nothing
+        return Task.CompletedTask;
     }
 }

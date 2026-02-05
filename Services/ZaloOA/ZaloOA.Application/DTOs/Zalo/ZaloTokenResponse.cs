@@ -11,9 +11,11 @@ public class ZaloTokenResponse
     public string? RefreshToken { get; set; }
 
     [JsonPropertyName("expires_in")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public int? ExpiresIn { get; set; }
 
     [JsonPropertyName("error")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public int? Error { get; set; }
 
     [JsonPropertyName("message")]

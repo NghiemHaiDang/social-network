@@ -27,37 +27,34 @@ services:
       - social-network
 
   rabbitmq:
-    image: rabbitmq:management
+    image: rabbitmq:3-management
     container_name: socialRabbitMQ
+    hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
       - "${RABBITMQ_PORT}:5672"
       - "${RABBITMQ_UI_PORT}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - social-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   identity-api:
     build:
       context: ./Services/Identity
       dockerfile: Identity.API/Dockerfile
     container_name: identity-api
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=https://+:8081;http://+:8080
-      - ASPNETCORE_HTTPS_PORT=${IDENTITY_HTTPS_PORT}
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=${CERT_PASSWORD}
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=IdentityDb;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-      - Jwt__Secret=${JWT_SECRET}
-      - Jwt__Issuer=${JWT_ISSUER}
-      - Jwt__Audience=${JWT_AUDIENCE}
+    env_file:
+      - ./Services/Identity/.env
     ports:
       - "${IDENTITY_HTTP_PORT}:8080"
-      - "${IDENTITY_HTTPS_PORT}:8081"
-    volumes:
-      - ./certs:/https:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,32 +66,41 @@ services:
       context: ./Services/ZaloOA
       dockerfile: ZaloOA.API/Dockerfile
     container_name: zalooa-api
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=https://+:8081;http://+:8080
-      - ASPNETCORE_HTTPS_PORT=${ZALOOA_HTTPS_PORT}
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=${CERT_PASSWORD}
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ZaloOADb;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-      - Jwt__Secret=${JWT_SECRET}
-      - Jwt__Issuer=${JWT_ISSUER}
-      - Jwt__Audience=${JWT_AUDIENCE}
-      - Zalo__AppId=${ZALO_APP_ID}
-      - Zalo__AppSecret=${ZALO_APP_SECRET}
-      - Zalo__DefaultRedirectUri=${ZALO_REDIRECT_URI}
+    env_file:
+      - ./Services/ZaloOA/.env
     ports:
       - "${ZALOOA_HTTP_PORT}:8080"
-      - "${ZALOOA_HTTPS_PORT}:8081"
-    volumes:
-      - ./certs:/https:ro
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - social-network
 
+  api-gateway:
+    build:
+      context: ./Services/ApiGateway
+      dockerfile: ApiGateway/Dockerfile
+    container_name: api-gateway
+    env_file:
+      - ./Services/ApiGateway/.env
+    ports:
+      - "${GATEWAY_HTTP_PORT}:8080"
+    depends_on:
+      - identity-api
+      - zalooa-api
+    networks:
+      - social-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   social-data:
+  rabbitmq-data:
 
 networks:
   social-network:

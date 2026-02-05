@@ -22,6 +22,113 @@ namespace ZaloOA.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("ZaloOA.Domain.Entities.ZaloConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastMessagePreview")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("OAAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UnreadCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ZaloUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastMessageAt");
+
+                    b.HasIndex("OAAccountId");
+
+                    b.HasIndex("ZaloUserId");
+
+                    b.HasIndex("OAAccountId", "ZaloUserId")
+                        .IsUnique();
+
+                    b.ToTable("ZaloConversations", (string)null);
+                });
+
+            modelBuilder.Entity("ZaloOA.Domain.Entities.ZaloMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AttachmentName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Direction")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ZaloMessageId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("SentAt");
+
+                    b.HasIndex("ZaloMessageId");
+
+                    b.ToTable("ZaloMessages", (string)null);
+                });
+
             modelBuilder.Entity("ZaloOA.Domain.Entities.ZaloOAAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -77,6 +184,90 @@ namespace ZaloOA.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("ZaloOAAccounts", (string)null);
+                });
+
+            modelBuilder.Entity("ZaloOA.Domain.Entities.ZaloUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("FollowedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsFollower")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastInteractionAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OAId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ZaloUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OAId");
+
+                    b.HasIndex("ZaloUserId", "OAId")
+                        .IsUnique();
+
+                    b.ToTable("ZaloUsers", (string)null);
+                });
+
+            modelBuilder.Entity("ZaloOA.Domain.Entities.ZaloConversation", b =>
+                {
+                    b.HasOne("ZaloOA.Domain.Entities.ZaloOAAccount", "OAAccount")
+                        .WithMany()
+                        .HasForeignKey("OAAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ZaloOA.Domain.Entities.ZaloUser", "ZaloUser")
+                        .WithMany()
+                        .HasForeignKey("ZaloUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OAAccount");
+
+                    b.Navigation("ZaloUser");
+                });
+
+            modelBuilder.Entity("ZaloOA.Domain.Entities.ZaloMessage", b =>
+                {
+                    b.HasOne("ZaloOA.Domain.Entities.ZaloConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("ZaloOA.Domain.Entities.ZaloConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 #pragma warning restore 612, 618
         }

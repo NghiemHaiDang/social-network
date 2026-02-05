@@ -1,12 +1,37 @@
 using System.Text;
+using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Identity.Infrastructure;
 using Identity.Infrastructure.Data;
 
+// Load .env file from service root (Services/Identity/)
+var serviceRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), ".."));
+var envPath = Path.Combine(serviceRoot, ".env");
+if (File.Exists(envPath))
+{
+    Env.Load(envPath);
+}
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Add environment variables to configuration
+builder.Configuration.AddEnvironmentVariables();
+
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 // Add Infrastructure services (DbContext, Identity, Repositories, Services)
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -30,6 +55,14 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
     };
+});
+
+// Configure Forwarded Headers for reverse proxy (ngrok, API Gateway)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 builder.Services.AddControllers();
@@ -78,13 +111,19 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
+// Handle forwarded headers from reverse proxy (ngrok, API Gateway)
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// NOTE: HTTPS redirection is handled by reverse proxy (ngrok/load balancer), not here
+// app.UseHttpsRedirection();
+
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

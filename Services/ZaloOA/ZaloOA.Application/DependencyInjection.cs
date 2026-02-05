@@ -9,6 +9,8 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<IZaloOAService, ZaloOAService>();
+        services.AddScoped<IZaloMessageService, ZaloMessageService>();
+        services.AddScoped<IZaloWebhookService, ZaloWebhookService>();
 
         return services;
     }

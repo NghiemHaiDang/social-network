@@ -22,15 +22,25 @@ public class ZaloOAService : IZaloOAService
         _zaloSettings = zaloSettings;
     }
 
-    public Task<Result<OAuth2AuthorizeUrlResponse>> GetOAuth2AuthorizeUrlAsync(string? redirectUri = null)
+    public Task<Result<OAuth2AuthorizeUrlResponse>> GetOAuth2AuthorizeUrlAsync(string userId, string? redirectUri = null)
     {
-        var state = Guid.NewGuid().ToString("N");
+        // Encode userId into state for callback verification
+        var stateData = $"{userId}|{Guid.NewGuid():N}";
+        var state = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(stateData));
+
         var finalRedirectUri = redirectUri ?? _zaloSettings.DefaultRedirectUri;
+
+        // DEBUG: Log exact values
+        Console.WriteLine($"[DEBUG] AppId: {_zaloSettings.AppId}");
+        Console.WriteLine($"[DEBUG] RedirectUri (raw): {finalRedirectUri}");
+        Console.WriteLine($"[DEBUG] RedirectUri (encoded): {Uri.EscapeDataString(finalRedirectUri)}");
 
         var authorizeUrl = $"{_zaloSettings.OAuthAuthorizeUrl}" +
             $"?app_id={_zaloSettings.AppId}" +
             $"&redirect_uri={Uri.EscapeDataString(finalRedirectUri)}" +
-            $"&state={state}";
+            $"&state={Uri.EscapeDataString(state)}";
+
+        Console.WriteLine($"[DEBUG] Full AuthorizeUrl: {authorizeUrl}");
 
         var response = new OAuth2AuthorizeUrlResponse
         {
@@ -41,9 +51,107 @@ public class ZaloOAService : IZaloOAService
         return Task.FromResult(Result<OAuth2AuthorizeUrlResponse>.Success(response));
     }
 
+    public async Task<Result<OAuthCallbackResponse>> HandleOAuthCallbackAsync(string code, string state)
+    {
+        // Decode userId from state
+        string userId;
+        try
+        {
+            var stateData = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(state));
+            var parts = stateData.Split('|');
+            if (parts.Length < 2)
+            {
+                return Result<OAuthCallbackResponse>.Failure("Invalid state parameter");
+            }
+            userId = parts[0];
+        }
+        catch
+        {
+            return Result<OAuthCallbackResponse>.Failure("Invalid state parameter format");
+        }
+
+        // Exchange code for token
+        Console.WriteLine($"[DEBUG] HandleOAuthCallback - Code: {code?.Substring(0, Math.Min(20, code?.Length ?? 0))}...");
+        Console.WriteLine($"[DEBUG] HandleOAuthCallback - RedirectUri: {_zaloSettings.DefaultRedirectUri}");
+
+        var tokenResponse = await _zaloApiClient.ExchangeCodeForTokenAsync(code, _zaloSettings.DefaultRedirectUri, codeVerifier: null);
+
+        Console.WriteLine($"[DEBUG] TokenResponse - Error: {tokenResponse.Error}, Message: {tokenResponse.Message}");
+        Console.WriteLine($"[DEBUG] TokenResponse - AccessToken: {(tokenResponse.AccessToken != null ? "exists" : "null")}");
+
+        if (tokenResponse.Error.HasValue && tokenResponse.Error != 0)
+        {
+            Console.WriteLine($"[DEBUG] Token exchange failed with error: {tokenResponse.Error} - {tokenResponse.Message}");
+            return Result<OAuthCallbackResponse>.Failure(tokenResponse.Message ?? "Failed to exchange code for token");
+        }
+
+        if (string.IsNullOrEmpty(tokenResponse.AccessToken))
+        {
+            Console.WriteLine($"[DEBUG] No access token in response. Full message: {tokenResponse.Message}");
+            return Result<OAuthCallbackResponse>.Failure(tokenResponse.Message ?? "No access token received from Zalo");
+        }
+
+        // Get OA info
+        Console.WriteLine($"[DEBUG] Getting OA info with access token...");
+        var oaInfoResponse = await _zaloApiClient.GetOAInfoAsync(tokenResponse.AccessToken);
+
+        Console.WriteLine($"[DEBUG] OAInfoResponse - Error: {oaInfoResponse.Error}, Message: {oaInfoResponse.Message}");
+
+        if (oaInfoResponse.Error != 0 || oaInfoResponse.Data == null)
+        {
+            Console.WriteLine($"[DEBUG] GetOAInfo failed: {oaInfoResponse.Error} - {oaInfoResponse.Message}");
+            return Result<OAuthCallbackResponse>.Failure(oaInfoResponse.Message ?? "Failed to get OA information");
+        }
+
+        var oaId = oaInfoResponse.Data.OAId!;
+
+        // Check if account already exists
+        var existingAccount = await _unitOfWork.ZaloOAAccounts.GetByUserIdAndOAIdAsync(userId, oaId);
+        ZaloOAAccount account;
+
+        if (existingAccount != null)
+        {
+            existingAccount.UpdateTokens(
+                tokenResponse.AccessToken,
+                tokenResponse.RefreshToken,
+                tokenResponse.ExpiresIn);
+            existingAccount.UpdateOAInfo(oaInfoResponse.Data.Name, oaInfoResponse.Data.Avatar);
+
+            _unitOfWork.ZaloOAAccounts.Update(existingAccount);
+            account = existingAccount;
+        }
+        else
+        {
+            account = ZaloOAAccount.Create(
+                userId: userId,
+                oaId: oaId,
+                name: oaInfoResponse.Data.Name ?? "Unknown OA",
+                avatarUrl: oaInfoResponse.Data.Avatar,
+                accessToken: tokenResponse.AccessToken,
+                refreshToken: tokenResponse.RefreshToken,
+                expiresInSeconds: tokenResponse.ExpiresIn,
+                authType: AuthenticationType.OAuth2);
+
+            await _unitOfWork.ZaloOAAccounts.AddAsync(account);
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+
+        var response = new OAuthCallbackResponse
+        {
+            Success = true,
+            Message = existingAccount != null ? "Zalo OA reconnected successfully" : "Zalo OA connected successfully",
+            AccountId = account.Id,
+            OAName = account.Name,
+            RedirectUrl = $"{_zaloSettings.FrontendBaseUrl}/zalo/callback?success=true&accountId={account.Id}&oa_name={Uri.EscapeDataString(account.Name)}"
+        };
+
+        return Result<OAuthCallbackResponse>.Success(response);
+    }
+
     public async Task<Result<ZaloOAResponse>> ConnectWithOAuth2Async(string userId, ConnectOAuth2Request request)
     {
-        var tokenResponse = await _zaloApiClient.ExchangeCodeForTokenAsync(request.Code, request.CodeVerifier);
+        var tokenResponse = await _zaloApiClient.ExchangeCodeForTokenAsync(request.Code, _zaloSettings.DefaultRedirectUri, request.CodeVerifier);
 
         if (tokenResponse.Error.HasValue && tokenResponse.Error != 0)
         {
@@ -240,4 +348,5 @@ public class ZaloSettings
     public string OAuthTokenUrl { get; set; } = "https://oauth.zaloapp.com/v4/oa/access_token";
     public string OpenApiBaseUrl { get; set; } = "https://openapi.zalo.me";
     public string DefaultRedirectUri { get; set; } = null!;
+    public string FrontendBaseUrl { get; set; } = "http://localhost:3000";
 }

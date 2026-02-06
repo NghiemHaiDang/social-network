@@ -1,6 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 using ZaloOA.Application.Interfaces;
 using ZaloOA.Application.Services;
 using ZaloOA.Infrastructure.Data;
@@ -15,9 +15,17 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Database
-        services.AddDbContext<ZaloOADbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        // MongoDB
+        var connectionString = configuration.GetConnectionString("DefaultConnection")!;
+        var databaseName = configuration.GetConnectionString("DatabaseName") ?? "ZaloOADb";
+
+        services.AddSingleton<IMongoClient>(new MongoClient(connectionString));
+        services.AddSingleton(sp =>
+        {
+            var client = sp.GetRequiredService<IMongoClient>();
+            return client.GetDatabase(databaseName);
+        });
+        services.AddSingleton<MongoDbContext>();
 
         // Configuration
         var zaloSettings = new ZaloSettings();

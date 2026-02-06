@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using ZaloOA.Application.Interfaces;
 using ZaloOA.Domain.Entities;
 using ZaloOA.Infrastructure.Data;
@@ -7,27 +7,29 @@ namespace ZaloOA.Infrastructure.Repositories;
 
 public class ZaloMessageRepository : Repository<ZaloMessage>, IZaloMessageRepository
 {
-    public ZaloMessageRepository(ZaloOADbContext context) : base(context)
+    public ZaloMessageRepository(MongoDbContext context) : base(context)
     {
     }
 
     public async Task<IEnumerable<ZaloMessage>> GetByConversationIdAsync(Guid conversationId, int offset, int limit)
     {
-        return await _dbSet
-            .Where(x => x.ConversationId == conversationId)
-            .OrderBy(x => x.SentAt)  // Cũ nhất lên đầu, mới nhất ở cuối
+        return await _collection
+            .Find(x => x.ConversationId == conversationId)
+            .SortBy(x => x.SentAt)
             .Skip(offset)
-            .Take(limit)
+            .Limit(limit)
             .ToListAsync();
     }
 
     public async Task<int> CountByConversationIdAsync(Guid conversationId)
     {
-        return await _dbSet.CountAsync(x => x.ConversationId == conversationId);
+        return (int)await _collection.CountDocumentsAsync(x => x.ConversationId == conversationId);
     }
 
     public async Task<ZaloMessage?> GetByZaloMessageIdAsync(string zaloMessageId)
     {
-        return await _dbSet.FirstOrDefaultAsync(x => x.ZaloMessageId == zaloMessageId);
+        return await _collection
+            .Find(x => x.ZaloMessageId == zaloMessageId)
+            .FirstOrDefaultAsync();
     }
 }

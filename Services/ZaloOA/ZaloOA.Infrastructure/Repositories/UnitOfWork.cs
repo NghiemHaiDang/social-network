@@ -1,13 +1,12 @@
-using Microsoft.EntityFrameworkCore.Storage;
+using MongoDB.Driver;
 using ZaloOA.Application.Interfaces;
-using ZaloOA.Infrastructure.Data;
 
 namespace ZaloOA.Infrastructure.Repositories;
 
 public class UnitOfWork : IUnitOfWork
 {
-    private readonly ZaloOADbContext _context;
-    private IDbContextTransaction? _transaction;
+    private readonly IMongoClient _client;
+    private IClientSessionHandle? _session;
 
     public IZaloOAAccountRepository ZaloOAAccounts { get; }
     public IZaloUserRepository ZaloUsers { get; }
@@ -15,52 +14,54 @@ public class UnitOfWork : IUnitOfWork
     public IZaloMessageRepository ZaloMessages { get; }
 
     public UnitOfWork(
-        ZaloOADbContext context,
+        IMongoClient client,
         IZaloOAAccountRepository zaloOAAccountRepository,
         IZaloUserRepository zaloUserRepository,
         IZaloConversationRepository zaloConversationRepository,
         IZaloMessageRepository zaloMessageRepository)
     {
-        _context = context;
+        _client = client;
         ZaloOAAccounts = zaloOAAccountRepository;
         ZaloUsers = zaloUserRepository;
         ZaloConversations = zaloConversationRepository;
         ZaloMessages = zaloMessageRepository;
     }
 
-    public async Task<int> SaveChangesAsync()
+    public Task<int> SaveChangesAsync()
     {
-        return await _context.SaveChangesAsync();
+        // MongoDB writes are immediate per operation, no deferred save.
+        // This is a no-op for compatibility with the IUnitOfWork interface.
+        return Task.FromResult(0);
     }
 
     public async Task BeginTransactionAsync()
     {
-        _transaction = await _context.Database.BeginTransactionAsync();
+        _session = await _client.StartSessionAsync();
+        _session.StartTransaction();
     }
 
     public async Task CommitTransactionAsync()
     {
-        if (_transaction != null)
+        if (_session != null)
         {
-            await _transaction.CommitAsync();
-            await _transaction.DisposeAsync();
-            _transaction = null;
+            await _session.CommitTransactionAsync();
+            _session.Dispose();
+            _session = null;
         }
     }
 
     public async Task RollbackTransactionAsync()
     {
-        if (_transaction != null)
+        if (_session != null)
         {
-            await _transaction.RollbackAsync();
-            await _transaction.DisposeAsync();
-            _transaction = null;
+            await _session.AbortTransactionAsync();
+            _session.Dispose();
+            _session = null;
         }
     }
 
     public void Dispose()
     {
-        _transaction?.Dispose();
-        _context.Dispose();
+        _session?.Dispose();
     }
 }

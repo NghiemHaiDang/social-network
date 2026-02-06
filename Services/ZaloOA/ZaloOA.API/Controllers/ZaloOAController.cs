@@ -9,7 +9,7 @@ namespace ZaloOA.API.Controllers;
 
 [ApiController]
 [Route("api/zalooa")]
-// [Authorize]
+[Authorize]
 public class ZaloOAController : ControllerBase
 {
     private readonly IZaloOAService _zaloOAService;
@@ -22,9 +22,7 @@ public class ZaloOAController : ControllerBase
     }
 
     private string GetUserId() =>
-        User.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? Request.Headers["X-User-Id"].FirstOrDefault()
-        ?? "default-user"; // Fallback cho development
+        User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     /// <summary>
     /// Redirect to Zalo OAuth page for authorization
@@ -54,24 +52,15 @@ public class ZaloOAController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> OAuthCallback([FromQuery] string? code, [FromQuery] string? state, [FromQuery] string? error, [FromQuery] string? oa_id)
     {
-        Console.WriteLine($"[DEBUG] ========== OAuth Callback Received ==========");
-        Console.WriteLine($"[DEBUG] Code: {code?.Substring(0, Math.Min(30, code?.Length ?? 0))}...");
-        Console.WriteLine($"[DEBUG] State: {state?.Substring(0, Math.Min(30, state?.Length ?? 0))}...");
-        Console.WriteLine($"[DEBUG] Error: {error}");
-        Console.WriteLine($"[DEBUG] OA_ID: {oa_id}");
-        Console.WriteLine($"[DEBUG] =================================================");
-
         var frontendCallback = $"{_zaloSettings.FrontendBaseUrl}/zalo/callback";
 
         if (!string.IsNullOrEmpty(error))
         {
-            Console.WriteLine($"[DEBUG] OAuth Error from Zalo: {error}");
             return Redirect($"{frontendCallback}?success=false&error={Uri.EscapeDataString(error)}");
         }
 
         if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
         {
-            Console.WriteLine($"[DEBUG] Missing parameters - code: {code != null}, state: {state != null}");
             return Redirect($"{frontendCallback}?success=false&error=missing_parameters");
         }
 
@@ -79,11 +68,8 @@ public class ZaloOAController : ControllerBase
 
         if (!result.IsSuccess)
         {
-            Console.WriteLine($"[DEBUG] HandleOAuthCallback failed: {result.Error}");
             return Redirect($"{frontendCallback}?success=false&error={Uri.EscapeDataString(result.Error ?? "unknown_error")}");
         }
-
-        Console.WriteLine($"[DEBUG] OAuth Success! Redirecting to: {result.Data!.RedirectUrl}");
         return Redirect(result.Data!.RedirectUrl);
     }
 

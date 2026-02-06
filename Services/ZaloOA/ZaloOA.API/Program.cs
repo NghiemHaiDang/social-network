@@ -2,7 +2,6 @@ using System.Text;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ZaloOA.API.Hubs;
@@ -10,7 +9,6 @@ using ZaloOA.API.Services;
 using ZaloOA.Application;
 using ZaloOA.Application.Interfaces;
 using ZaloOA.Infrastructure;
-using ZaloOA.Infrastructure.Data;
 
 // Load .env file from service root (Services/ZaloOA/)
 var serviceRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), ".."));
@@ -161,13 +159,6 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
-
-// Auto migrate database
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ZaloOADbContext>();
-    db.Database.Migrate();
-}
 
 // Handle forwarded headers from reverse proxy (ngrok, API Gateway)
 app.UseForwardedHeaders();

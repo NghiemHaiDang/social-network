@@ -6,7 +6,7 @@ namespace ZaloOA.Domain.Entities;
 
 public class ZaloOAAccount : BaseEntity
 {
-    public string UserId { get; private set; } = null!;
+    public string UserId { get; private set; } = null!; 
     public string OAId { get; private set; } = null!;
     public string Name { get; private set; } = null!;
     public string? AvatarUrl { get; private set; }

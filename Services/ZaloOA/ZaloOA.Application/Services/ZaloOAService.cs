@@ -30,18 +30,10 @@ public class ZaloOAService : IZaloOAService
 
         var finalRedirectUri = redirectUri ?? _zaloSettings.DefaultRedirectUri;
 
-        // DEBUG: Log exact values
-        Console.WriteLine($"[DEBUG] AppId: {_zaloSettings.AppId}");
-        Console.WriteLine($"[DEBUG] RedirectUri (raw): {finalRedirectUri}");
-        Console.WriteLine($"[DEBUG] RedirectUri (encoded): {Uri.EscapeDataString(finalRedirectUri)}");
-
         var authorizeUrl = $"{_zaloSettings.OAuthAuthorizeUrl}" +
             $"?app_id={_zaloSettings.AppId}" +
             $"&redirect_uri={Uri.EscapeDataString(finalRedirectUri)}" +
             $"&state={Uri.EscapeDataString(state)}";
-
-        Console.WriteLine($"[DEBUG] Full AuthorizeUrl: {authorizeUrl}");
-
         var response = new OAuth2AuthorizeUrlResponse
         {
             AuthorizeUrl = authorizeUrl,

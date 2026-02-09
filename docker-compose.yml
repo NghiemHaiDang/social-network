@@ -81,7 +81,7 @@ services:
   api-gateway:
     build:
       context: ./Services/ApiGateway
-      dockerfile: ApiGateway/Dockerfile
+      dockerfile: Dockerfile
     container_name: api-gateway
     env_file:
       - ./Services/ApiGateway/.env

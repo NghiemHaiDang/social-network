@@ -1,16 +1,30 @@
 using System.Text;
+using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using Ocelot.Provider.Polly;
 
+// Load .env file from service root (Services/ApiGateway/)
+var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+if (File.Exists(envPath))
+{
+    Env.Load(envPath);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Load Ocelot configuration
-builder.Configuration
-    .AddJsonFile("ocelot.json", optional: false, reloadOnChange: true)
-    .AddJsonFile($"ocelot.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+// Add environment variables to configuration
+builder.Configuration.AddEnvironmentVariables();
+
+// Load Ocelot configuration - use environment-specific file if exists, otherwise fallback to base
+var ocelotFile = $"ocelot.{builder.Environment.EnvironmentName}.json";
+if (!File.Exists(ocelotFile))
+{
+    ocelotFile = "ocelot.json";
+}
+builder.Configuration.AddJsonFile(ocelotFile, optional: false, reloadOnChange: true);
 
 // JWT Authentication
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
@@ -88,8 +102,17 @@ var app = builder.Build();
 // CORS middleware (before authentication)
 app.UseCors("AllowWebApp");
 
-// Health check endpoint
-app.MapHealthChecks("/health");
+// Health check middleware (must run before Ocelot, which is terminal)
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.Equals("/health", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = 200;
+        await context.Response.WriteAsync("healthy");
+        return;
+    }
+    await next();
+});
 
 // Ocelot middleware
 await app.UseOcelot();
